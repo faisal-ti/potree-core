@@ -63,6 +63,7 @@ uniform float wElevation;
 uniform float wClassification;
 uniform float wReturnNumber;
 uniform float wSourceID;
+uniform float groundPlane;
 
 uniform sampler2D visibleNodes;
 uniform sampler2D gradient;
@@ -305,14 +306,44 @@ vec3 getRGB() {
 
 #endif
 
-float getIntensity() {
+vec3 getIntensity() {
 	float w = (intensity - intensityRange.x) / (intensityRange.y - intensityRange.x);
 	w = pow(w, intensityGamma);
 	w = w + intensityBrightness;
 	w = (w - 0.5) * getContrastFactor(intensityContrast) + 0.5;
 	w = clamp(w, 0.0, 1.0);
 	
-	return w;
+	// Map w to one of 30 colors
+	if (w < 0.0333) return vec3(0.267, 0.004, 0.329);      // #440154
+	else if (w < 0.0666) return vec3(0.278, 0.054, 0.380); // #470e61 
+	else if (w < 0.1) return vec3(0.282, 0.106, 0.427);    // #481b6d
+	else if (w < 0.1333) return vec3(0.282, 0.145, 0.463); // #482576
+	else if (w < 0.1666) return vec3(0.275, 0.188, 0.494); // #46307e
+	else if (w < 0.2) return vec3(0.267, 0.231, 0.518);    // #443b84
+	else if (w < 0.2333) return vec3(0.251, 0.275, 0.533); // #404688
+	else if (w < 0.2666) return vec3(0.235, 0.314, 0.545); // #3c508b
+	else if (w < 0.3) return vec3(0.220, 0.349, 0.549);    // #38598c
+	else if (w < 0.3333) return vec3(0.200, 0.384, 0.553); // #33628d
+	else if (w < 0.3666) return vec3(0.184, 0.420, 0.557); // #2f6b8e
+	else if (w < 0.4) return vec3(0.173, 0.451, 0.557);    // #2c738e
+	else if (w < 0.4333) return vec3(0.157, 0.486, 0.557); // #287c8e
+	else if (w < 0.4666) return vec3(0.145, 0.514, 0.557); // #25838e
+	else if (w < 0.5) return vec3(0.133, 0.549, 0.553);    // #228c8d
+	else if (w < 0.5333) return vec3(0.122, 0.580, 0.549); // #1f948c
+	else if (w < 0.5666) return vec3(0.118, 0.616, 0.537); // #1e9d89
+	else if (w < 0.6) return vec3(0.125, 0.643, 0.525);    // #20a486
+	else if (w < 0.6333) return vec3(0.149, 0.678, 0.506); // #26ad81
+	else if (w < 0.6666) return vec3(0.192, 0.710, 0.482); // #31b57b
+	else if (w < 0.7) return vec3(0.247, 0.737, 0.451);    // #3fbc73
+	else if (w < 0.7333) return vec3(0.314, 0.769, 0.416); // #50c46a
+	else if (w < 0.7666) return vec3(0.376, 0.792, 0.376); // #60ca60
+	else if (w < 0.8) return vec3(0.459, 0.816, 0.329);    // #75d054
+	else if (w < 0.8333) return vec3(0.545, 0.839, 0.275); // #8bd646
+	else if (w < 0.8666) return vec3(0.635, 0.855, 0.216); // #a2da37
+	else if (w < 0.9) return vec3(0.729, 0.871, 0.157);    // #bade28
+	else if (w < 0.9333) return vec3(0.816, 0.882, 0.110); // #d0e11c
+	else if (w < 0.9666) return vec3(0.906, 0.894, 0.098); // #e7e419
+	else return vec3(0.992, 0.906, 0.145);                 // #fde725
 }
 
 vec3 getElevation() {
@@ -358,7 +389,7 @@ vec3 getCompositeColor() {
 	c += wRGB * getRGB();
 	w += wRGB;
 	
-	c += wIntensity * getIntensity() * vec3(1.0, 1.0, 1.0);
+	c += wIntensity * getIntensity().x * vec3(1.0, 1.0, 1.0);
 	w += wIntensity;
 	
 	c += wElevation * getElevation();
@@ -510,11 +541,38 @@ void main() {
 		}
 	#endif
 
+		// 	vec3 rgbColor = vec3(1.0, 1.0, 1.0);
+        // #ifdef color_type_rgb
+        //     rgbColor = rgba;
+        // #elif defined color_type_intensity
+        //     float w = getIntensity();
+        //     rgbColor = vec3(w, w, w);
+		// #endif
+		// vColor = vec4(rgbColor, 1.0);
+
 	// ---------------------
 	// POINT COLOR
 	// ---------------------	
-	#ifdef new_format
-		vColor = rgba;
+	#ifdef color_type_intensity
+		vec3 intensity = getIntensity();
+		vColor = vec4(intensity, 1.0);	
+	#elif defined color_type_classification
+	 	vec4 cl = getClassification(); 
+		vColor = cl;
+	#elif defined new_format
+		vec4 pointColor;
+		if (rgba.r == 0.0 && rgba.g == 0.0 && rgba.b == 0.0) {
+			pointColor = vec4(1.0, 1.0, 1.0, rgba.a);
+		} else {
+			pointColor = rgba;
+		}
+		
+		vec4 world = modelMatrix * vec4(position, 1.0);
+		if (world.z < groundPlane) {
+			vColor = vec4(0.094, 1.0, 1.0, pointColor.a);
+		} else {
+			vColor = pointColor;
+		}
 	#elif defined color_type_rgb
 		vColor = getRGB();
 	#elif defined color_type_height
@@ -526,12 +584,9 @@ void main() {
 		float linearDepth = -mvPosition.z ;
 		float expDepth = (gl_Position.z / gl_Position.w) * 0.5 + 0.5;
 		vColor = vec3(linearDepth, expDepth, 0.0);
-	#elif defined color_type_intensity
-		float w = getIntensity();
-		vColor = vec3(w, w, w);
-	#elif defined color_type_intensity_gradient
-		float w = getIntensity();
-		vColor = texture(gradient, vec2(w, 1.0 - w)).rgb;
+	// #elif defined color_type_intensity_gradient
+	// 	float w = getIntensity();
+	// 	vColor = texture(gradient, vec2(w, 1.0 - w)).rgb;
 	#elif defined color_type_color
 		vColor = uColor;
 	#elif defined color_type_lod
@@ -539,9 +594,7 @@ void main() {
 	vColor = texture(gradient, vec2(w, 1.0 - w)).rgb;
 	#elif defined color_type_point_index
 		vColor = indices.rgb;
-	#elif defined color_type_classification
-	  vec4 cl = getClassification(); 
-		vColor = cl.rgb;
+
 	#elif defined color_type_return_number
 		vColor = getReturnNumber();
 	#elif defined color_type_source

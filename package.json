@@ -1,5 +1,5 @@
 {
-	"name": "potree-core",
+	"name": "@faisal-ti/potree-core",
 	"version": "2.0.10",
 	"description": "Potree wrapper for three.js applications",
 	"repository": {
@@ -16,9 +16,10 @@
 		"build": "webpack --mode production --config webpack.prod.js",
 		"start": "npm run build && webpack-dev-server --config webpack.example.js --mode development --progress --port 5200",
 		"docs": "jsdoc -d docs source",
-		"pub": "npm run build && npm publish --access public .",
+		"pub": "npm run build && npm publish",
 		"lint": "eslint source",
-		"lint-fix": "eslint --fix source"
+		"lint-fix": "eslint --fix source",
+		"test": "exit 0"
 	},
 	"keywords": [
 		"three",
@@ -55,5 +56,8 @@
 		"webpack-cli": "5.1.4",
 		"webpack-dev-server": "5.0.4",
 		"worker-loader": "3.0.8"
+	},
+	"publishConfig": {
+		"@faisal-ti:registry": "https://npm.pkg.github.com"
 	}
 }

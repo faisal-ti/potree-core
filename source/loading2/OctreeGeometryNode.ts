@@ -1,173 +1,159 @@
-import {IPointCloudTreeNode} from './../types';
-import {Box3, Sphere, BufferGeometry} from 'three';
-import {OctreeGeometry} from './OctreeGeometry';
+import { IPointCloudTreeNode } from "../types";
+import { Box3, Sphere, BufferGeometry } from "three";
+import { OctreeGeometry } from "./OctreeGeometry";
 
-export class OctreeGeometryNode implements IPointCloudTreeNode
-{
+export class OctreeGeometryNode implements IPointCloudTreeNode {
+  constructor(
+    public name: string,
+    public octreeGeometry: OctreeGeometry,
+    public boundingBox: Box3
+  ) {
+    this.id = OctreeGeometryNode.IDCount++;
+    this.index = parseInt(name.charAt(name.length - 1));
+    this.boundingSphere = boundingBox.getBoundingSphere(new Sphere());
+    this.numPoints = 0;
+    this.oneTimeDisposeHandlers = [];
+  }
 
-	constructor(public name: string, public octreeGeometry: OctreeGeometry, public boundingBox: Box3)
-	{
-		this.id = OctreeGeometryNode.IDCount++;
-		this.index = parseInt(name.charAt(name.length - 1));
-		this.boundingSphere = boundingBox.getBoundingSphere(new Sphere());
-		this.numPoints = 0;
-		this.oneTimeDisposeHandlers = [];
-	}
+  loaded: boolean = false;
 
-	loaded: boolean = false;
+  loading: boolean = false;
 
-	loading: boolean = false;
+  parent: OctreeGeometryNode | null = null;
 
-	parent: OctreeGeometryNode | null = null;
+  geometry: BufferGeometry | null = null;
 
-	geometry: BufferGeometry | null = null;
+  nodeType?: number;
 
-	nodeType?: number;
+  byteOffset?: bigint;
 
-	byteOffset?: bigint ;
+  byteSize?: bigint;
 
-	byteSize?: bigint;
+  hierarchyByteOffset?: bigint;
 
-	hierarchyByteOffset?: bigint;
+  hierarchyByteSize?: bigint;
 
-	hierarchyByteSize?: bigint;
+  hasChildren: boolean = false;
 
-	hasChildren: boolean = false;
+  spacing!: number;
 
-	spacing!: number;
+  density?: number;
 
-	density?: number;
+  isLeafNode: boolean = true;
 
-	isLeafNode: boolean = true;
+  readonly isTreeNode: boolean = false;
 
-	readonly isTreeNode: boolean = false;
+  readonly isGeometryNode: boolean = true;
 
-  	readonly isGeometryNode: boolean = true;
+  readonly children: ReadonlyArray<OctreeGeometryNode | null> = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
 
-	readonly children: ReadonlyArray<OctreeGeometryNode | null> = [
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null,
-		null
-	];
+  // create static IDCount variable
+  static IDCount = 0;
 
-	// create static IDCount variable
-	static IDCount = 0;
+  id: number;
 
-	id: number;
+  index: number;
 
-	index: number;
+  boundingSphere: Sphere;
 
-	boundingSphere: Sphere;
+  numPoints: number;
 
-	numPoints: number;
+  level!: number;
 
-	level!: number;
+  oneTimeDisposeHandlers: Function[];
 
-	oneTimeDisposeHandlers: Function[];
+  // isGeometryNode(){
+  // 	return true;
+  // }
 
-	// isGeometryNode(){
-	// 	return true;
-	// }
+  getLevel() {
+    return this.level;
+  }
 
-	getLevel()
-	{
-		return this.level;
-	}
+  // isTreeNode(){
+  // 	return false;
+  // } // Converted to property
 
-	// isTreeNode(){
-	// 	return false;
-	// } // Converted to property
+  isLoaded() {
+    return this.loaded;
+  }
 
-	isLoaded()
-	{
-		return this.loaded;
-	}
+  getBoundingSphere() {
+    return this.boundingSphere;
+  }
 
-	getBoundingSphere()
-	{
-		return this.boundingSphere;
-	}
+  // getChildren(){
+  // 	let children = [];
 
-	// getChildren(){
-	// 	let children = [];
+  // 	for (let i = 0; i < 8; i++) {
+  // 		if (this.children[i]) {
+  // 			children.push(this.children[i]);
+  // 		}
+  // 	}
 
-	// 	for (let i = 0; i < 8; i++) {
-	// 		if (this.children[i]) {
-	// 			children.push(this.children[i]);
-	// 		}
-	// 	}
+  // 	return children;
+  // }
 
-	// 	return children;
-	// }
+  getBoundingBox() {
+    return this.boundingBox;
+  }
 
-	getBoundingBox()
-	{
-		return this.boundingBox;
-	}
+  load() {
+    if (
+      this.octreeGeometry.numNodesLoading >=
+      this.octreeGeometry.maxNumNodesLoading
+    ) {
+      return;
+    }
 
-	load()
-	{
+    if (this.octreeGeometry.loader) {
+      this.octreeGeometry.loader.load(this);
+    }
+  }
 
-		if (this.octreeGeometry.numNodesLoading >= this.octreeGeometry.maxNumNodesLoading) 
-		{
-			return;
-		}
+  getNumPoints() {
+    return this.numPoints;
+  }
 
-		if (this.octreeGeometry.loader) 
-		{
-			this.octreeGeometry.loader.load(this);
-		}
-	}
+  dispose(): void {
+    if (this.geometry && this.parent != null) {
+      this.geometry.dispose();
+      this.geometry = null;
+      this.loaded = false;
 
-	getNumPoints()
-	{
-		return this.numPoints;
-	}
+      // this.dispatchEvent( { type: 'dispose' } );
+      for (let i = 0; i < this.oneTimeDisposeHandlers.length; i++) {
+        let handler = this.oneTimeDisposeHandlers[i];
+        handler();
+      }
+      this.oneTimeDisposeHandlers = [];
+    }
+  }
 
-	dispose(): void
-	{
-		if (this.geometry && this.parent != null) 
-		{
-			this.geometry.dispose();
-			this.geometry = null;
-			this.loaded = false;
+  traverse(cb: (node: OctreeGeometryNode) => void, includeSelf = true): void {
+    const stack: OctreeGeometryNode[] = includeSelf ? [this] : [];
 
-			// this.dispatchEvent( { type: 'dispose' } );
-			for (let i = 0; i < this.oneTimeDisposeHandlers.length; i++) 
-			{
-				let handler = this.oneTimeDisposeHandlers[i];
-				handler();
-			}
-			this.oneTimeDisposeHandlers = [];
-		}
-	}
+    let current: OctreeGeometryNode | undefined;
 
-	traverse(cb: (node: OctreeGeometryNode)=> void, includeSelf = true): void 
-	{
-		const stack: OctreeGeometryNode[] = includeSelf ? [this] : [];
-	
-		let current: OctreeGeometryNode | undefined;
-	
-		while ((current = stack.pop()) !== undefined) 
-		{
-			cb(current);
-		
-			for (const child of current.children) 
-			{
-				if (child !== null) 
-				{
-					stack.push(child);
-				}
-			}
-		}
-	}
+    while ((current = stack.pop()) !== undefined) {
+      cb(current);
 
-
+      for (const child of current.children) {
+        if (child !== null) {
+          stack.push(child);
+        }
+      }
+    }
+  }
 }
 
 OctreeGeometryNode.IDCount = 0;
