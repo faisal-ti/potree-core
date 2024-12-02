@@ -479,11 +479,12 @@ void main() {
 	#if defined fixed_point_size
 		pointSize = size;
 	#elif defined attenuated_point_size
-		if (useOrthographicCamera){
-			pointSize = size;
-		} else {
-			pointSize = size * spacing * projFactor;
-		}
+		// if (useOrthographicCamera){
+		// 	pointSize = size;
+		// } else {
+		// pointSize = size * spacing * projFactor;
+		pointSize = size * spacing * projFactor;
+		// }
 	#elif defined adaptive_point_size
 		float worldSpaceSize = 2.0 * size * spacing / getPointSizeAttenuation();
 		if(useOrthographicCamera) {
@@ -506,40 +507,40 @@ void main() {
 	// HIGHLIGHTING
 	// ---------------------
 
-	#ifdef highlight_point
-		vec4 mPosition = modelMatrix * vec4(position, 1.0);
-		if (enablePointHighlighting && abs(mPosition.x - highlightedPointCoordinate.x) < 0.0001 &&
-			abs(mPosition.y - highlightedPointCoordinate.y) < 0.0001 &&
-			abs(mPosition.z - highlightedPointCoordinate.z) < 0.0001) {
-			vHighlight = 1.0;
-			gl_PointSize = pointSize * highlightedPointScale;
-		} else {
-			vHighlight = 0.0;
-		}
-	#endif
+	// #ifdef highlight_point
+	// 	vec4 mPosition = modelMatrix * vec4(position, 1.0);
+	// 	if (enablePointHighlighting && abs(mPosition.x - highlightedPointCoordinate.x) < 0.0001 &&
+	// 		abs(mPosition.y - highlightedPointCoordinate.y) < 0.0001 &&
+	// 		abs(mPosition.z - highlightedPointCoordinate.z) < 0.0001) {
+	// 		vHighlight = 1.0;
+	// 		gl_PointSize = pointSize * highlightedPointScale;
+	// 	} else {
+	// 		vHighlight = 0.0;
+	// 	}
+	// #endif
 
 	// ---------------------
 	// OPACITY
 	// ---------------------
 
-	#ifndef color_type_point_index
-		#ifdef attenuated_opacity
-			vOpacity = opacity * exp(-length(-mvPosition.xyz) / opacityAttenuation);
-		#else
-			vOpacity = opacity;
-		#endif
-	#endif
+	// #ifndef color_type_point_index
+	// 	#ifdef attenuated_opacity
+	// 		vOpacity = opacity * exp(-length(-mvPosition.xyz) / opacityAttenuation);
+	// 	#else
+	// 		vOpacity = opacity;
+	// 	#endif
+	// #endif
 
 	// ---------------------
 	// FILTERING
 	// ---------------------
 
-	#ifdef use_filter_by_normal
-		if(abs((modelViewMatrix * vec4(normal, 0.0)).z) > filterByNormalThreshold) {
-			// Move point outside clip space space to discard it.
-			gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
-		}
-	#endif
+	// #ifdef use_filter_by_normal
+	// 	if(abs((modelViewMatrix * vec4(normal, 0.0)).z) > filterByNormalThreshold) {
+	// 		// Move point outside clip space space to discard it.
+	// 		gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+	// 	}
+	// #endif
 
 		// 	vec3 rgbColor = vec3(1.0, 1.0, 1.0);
         // #ifdef color_type_rgb
@@ -562,14 +563,15 @@ void main() {
 	#elif defined new_format
 		vec4 pointColor;
 		if (rgba.r == 0.0 && rgba.g == 0.0 && rgba.b == 0.0) {
-			pointColor = vec4(1.0, 1.0, 1.0, rgba.a);
+			pointColor = vec4(1.0, 1.0, 1.0, 1.0);
 		} else {
 			pointColor = rgba;
 		}
 		
 		vec4 world = modelMatrix * vec4(position, 1.0);
 		if (world.z < groundPlane) {
-			vColor = vec4(0.094, 1.0, 1.0, pointColor.a);
+			// Ground points color
+			vColor = vec4(0.1, 1.0, 1.0, 1.0);
 		} else {
 			vColor = pointColor;
 		}
@@ -618,40 +620,40 @@ void main() {
 	// CLIPPING
 	// ---------------------
 
-	#if defined use_clip_box
-		bool insideAny = false;
-		for (int i = 0; i < max_clip_boxes; i++) {
-			if (i == int(clipBoxCount)) {
-				break;
-			}
+	// #if defined use_clip_box
+	// 	bool insideAny = false;
+	// 	for (int i = 0; i < max_clip_boxes; i++) {
+	// 		if (i == int(clipBoxCount)) {
+	// 			break;
+	// 		}
 		
-			vec4 clipPosition = clipBoxes[i] * modelMatrix * vec4(position, 1.0);
-			bool inside = -0.5 <= clipPosition.x && clipPosition.x <= 0.5;
-			inside = inside && -0.5 <= clipPosition.y && clipPosition.y <= 0.5;
-			inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
-			insideAny = insideAny || inside;
-		}
+	// 		vec4 clipPosition = clipBoxes[i] * modelMatrix * vec4(position, 1.0);
+	// 		bool inside = -0.5 <= clipPosition.x && clipPosition.x <= 0.5;
+	// 		inside = inside && -0.5 <= clipPosition.y && clipPosition.y <= 0.5;
+	// 		inside = inside && -0.5 <= clipPosition.z && clipPosition.z <= 0.5;
+	// 		insideAny = insideAny || inside;
+	// 	}
 
-		#if defined clip_outside
-			if (!insideAny) {
-				gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
-			}
-		#elif defined clip_inside
-			if (insideAny) {
-				gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
-			}
-		#elif defined clip_highlight_inside && !defined(color_type_depth)
-			if (!insideAny) {
-				float c = (vColor.r + vColor.g + vColor.b) / 6.0;
-			}
-		#endif
+	// 	#if defined clip_outside
+	// 		if (!insideAny) {
+	// 			gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
+	// 		}
+	// 	#elif defined clip_inside
+	// 		if (insideAny) {
+	// 			gl_Position = vec4(1000.0, 1000.0, 1000.0, 1.0);
+	// 		}
+	// 	#elif defined clip_highlight_inside && !defined(color_type_depth)
+	// 		if (!insideAny) {
+	// 			float c = (vColor.r + vColor.g + vColor.b) / 6.0;
+	// 		}
+	// 	#endif
 
-		#if defined clip_highlight_inside
-			if (insideAny) {
-				vColor.r += 0.5;
-			}
-		#endif
-	#endif
+	// 	#if defined clip_highlight_inside
+	// 		if (insideAny) {
+	// 			vColor.r += 0.5;
+	// 		}
+	// 	#endif
+	// #endif
 
 	// #ifdef color_encoding_sRGB
 	// 	#ifdef new_format
@@ -659,11 +661,11 @@ void main() {
 	// 	#endif
 	// #endif
 
-	#if defined(output_color_encoding_sRGB) && defined(input_color_encoding_linear)
-		vColor = toLinear(vColor);
-	#endif
+	// #if defined(output_color_encoding_sRGB) && defined(input_color_encoding_linear)
+	// 	vColor = toLinear(vColor);
+	// #endif
 
-	#if defined(output_color_encoding_linear) && defined(input_color_encoding_sRGB)
-		vColor = fromLinear(vColor);
-	#endif
+	// #if defined(output_color_encoding_linear) && defined(input_color_encoding_sRGB)
+	// 	vColor = fromLinear(vColor);
+	// #endif
 }
